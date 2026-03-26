@@ -998,31 +998,33 @@ async function loadData(token, range = 'long_term') {
 // ============================================================
 // BOOT
 // ============================================================
-document.getElementById('login-btn').onclick = login;
-
 async function boot() {
-  // Check for auth callback
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
+  
+  console.log('URL params:', window.location.search);
+  console.log('Code found:', code);
 
   if (code) {
     showLoading('Connecting to Spotify...');
     try {
+      console.log('Exchanging token...');
       const token = await exchangeToken(code);
+      console.log('Token received:', token ? 'YES' : 'NO');
       currentToken = token;
       initThree();
       buildGoals();
       await loadData(token);
     } catch (err) {
-      console.error(err);
+      console.error('Boot error:', err);
       hideLoading();
-      showToast('Auth failed. Please try again.');
+      showToast('Auth failed: ' + err.message);
     }
     return;
   }
 
-  // Check for existing token
   const token = getToken();
+  console.log('Stored token:', token ? 'YES' : 'NO');
   if (token) {
     currentToken = token;
     initThree();
@@ -1031,11 +1033,5 @@ async function boot() {
     return;
   }
 
-  // Show login
   document.getElementById('login-screen').style.display = 'flex';
 }
-
-boot();
-</script>
-</body>
-</html>
