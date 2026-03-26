@@ -368,7 +368,11 @@ async function spotifyFetch(endpoint, token) {
   const res = await fetch('https://api.spotify.com/v1' + endpoint, {
     headers: { Authorization: 'Bearer ' + token }
   });
-  if (!res.ok) throw new Error('Spotify API error: ' + res.status);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error('Spotify error on', endpoint, res.status, body);
+    throw new Error('Spotify API error: ' + res.status + ' — ' + JSON.stringify(body));
+  }
   return res.json();
 }
 
