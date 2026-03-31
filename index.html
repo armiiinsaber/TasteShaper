@@ -1,1 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Taste Shape — Melomaniac Studios</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root {
+  --lime:#b8f06e; --black:#080808; --surface:#0f0f0f;
+  --border:#1a1a1a; --muted:#333; --text:#e0e0e0;
+}
+html,body { height:100%; background:var(--black); color:var(--text); font-family:-apple-system,'Helvetica Neue',sans-serif; }
 
+#login-screen {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; height:100vh; gap:1.5rem; padding:2rem; text-align:center;
+}
+.logo { font-size:0.6rem; letter-spacing:0.32em; text-transform:uppercase; color:var(--lime); }
+#login-screen h1 { font-size:clamp(2.2rem,7vw,4rem); font-weight:700; line-height:1.05; }
+#login-screen h1 span { color:var(--lime); }
+#login-screen p { color:var(--muted); font-size:0.9rem; max-width:320px; line-height:1.7; }
+.btn-spotify {
+  display:flex; align-items:center; gap:0.75rem;
+  background:var(--lime); color:var(--black); border:none;
+  padding:0.9rem 1.8rem; border-radius:50px; font-size:0.95rem;
+  font-weight:700; cursor:pointer; margin-top:0.5rem; transition:transform 0.2s;
+}
+.btn-spotify:hover { transform:scale(1.04); }
+
+#app { display:none; flex-direction:column; min-height:100vh; }
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1rem 1.25rem; border-bottom:1px solid var(--border);
+  position:sticky; top:0; background:rgba(8,8,8,0.95);
+  backdrop-filter:blur(10px); z-index:10; flex-shrink:0;
+}
+.hdr-logo { font-size:0.58rem; letter-spacing:0.28em; text-transform:uppercase; color:var(--lime); }
+.user-pill { display:flex; align-items:center; gap:0.5rem; font-size:0.75rem; color:var(--muted); }
+.user-pill img { width:24px; height:24px; border-radius:50%; border:1px solid var(--lime); }
+
+#canvas-wrap {
+  position:relative; width:100%;
+  height:56vw; max-height:340px; min-height:220px; flex-shrink:0;
+  background:radial-gradient(ellipse at 50% 55%, #0d1a05 0%, var(--black) 72%);
+}
+#canvas-wrap canvas { width:100%; height:100%; display:block; }
+.shape-label {
+  position:absolute; bottom:1rem; left:50%; transform:translateX(-50%);
+  font-size:0.55rem; letter-spacing:0.28em; text-transform:uppercase;
+  color:var(--lime); opacity:0.35; pointer-events:none; white-space:nowrap;
+}
+
+.time-bar {
+  display:flex; gap:0.5rem; padding:0.75rem 1rem;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.t-btn {
+  background:none; border:1px solid var(--border); color:var(--muted);
+  padding:0.4rem 0.9rem; border-radius:50px; font-size:0.72rem;
+  cursor:pointer; transition:all 0.2s;
+}
+.t-btn.active { border-color:var(--lime); color:var(--lime); background:rgba(184,240,110,0.07); }
+.t-share { margin-left:auto; border-color:var(--lime) !important; color:var(--lime) !important; }
+
+.stats-row {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:1px; background:var(--border); border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.stat { background:var(--surface); padding:0.9rem 0.5rem; text-align:center; }
+.stat-val { font-size:1.3rem; font-weight:700; color:var(--lime); }
+.stat-lbl { font-size:0.55rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-top:0.2rem; }
+
+.scroll-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.section { padding:1.25rem 1rem; }
+.sec-title { font-size:0.56rem; letter-spacing:0.26em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
+
+.goals-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; }
+.goal-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden; cursor:pointer; transition:border-color 0.2s;
+}
+.goal-card.active { border-color:var(--lime); }
+.goal-card canvas { width:100%; aspect-ratio:1; display:block; background:#0a0a0a; }
+.goal-info { padding:0.4rem 0.5rem 0.55rem; }
+.goal-name { font-size:0.65rem; font-weight:600; }
+.goal-type { font-size:0.55rem; color:var(--muted); margin-top:0.1rem; }
+
+.progress-wrap {
+  margin:0 1rem 0.5rem;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:1rem; display:none;
+}
+.prog-labels { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
+.prog-you { font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+.prog-goal { font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--lime); }
+.prog-pct { font-size:0.7rem; font-weight:700; color:var(--lime); }
+.prog-track { height:3px; background:var(--border); border-radius:2px; position:relative; }
+.prog-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,#334411,var(--lime)); transition:width 0.6s ease; }
+.prog-thumb { position:absolute; top:50%; transform:translate(-50%,-50%); width:12px; height:12px; border-radius:50%; background:var(--lime); border:2px solid var(--black); transition:left 0.6s ease; }
+.prog-sub { font-size:0.62rem; color:var(--muted); margin-top:0.75rem; line-height:1.7; }
+.prog-sub em { font-style:normal; color:var(--lime); }
+
+.rec-list { display:flex; flex-direction:column; gap:0.5rem; }
+.rec-item {
+  display:flex; align-items:center; gap:0.85rem;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:0.65rem 0.75rem;
+  cursor:pointer; transition:border-color 0.2s; text-decoration:none; color:inherit;
+}
+.rec-item:hover { border-color:var(--lime); }
+.rec-img { width:44px; height:44px; border-radius:4px; object-fit:cover; flex-shrink:0; background:var(--border); }
+.rec-info { flex:1; min-width:0; }
+.rec-track { font-size:0.82rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rec-artist { font-size:0.7rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:0.15rem; }
+.rec-impact { display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem; flex-shrink:0; }
+.impact-bar-wrap { width:44px; height:3px; background:var(--border); border-radius:2px; }
+.impact-bar { height:100%; border-radius:2px; background:var(--lime); }
+.impact-lbl { font-size:0.55rem; color:var(--lime); }
+
+.track-list { display:flex; flex-direction:column; gap:0.4rem; }
+.track-item { display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.75rem; background:var(--surface); border-radius:8px; border:1px solid var(--border); }
+.track-img { width:36px; height:36px; border-radius:4px; object-fit:cover; background:var(--border); flex-shrink:0; }
+.track-name { font-size:0.78rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.track-artist { font-size:0.68rem; color:var(--muted); }
+
+#loading { display:none; position:fixed; inset:0; z-index:200; background:var(--black); flex-direction:column; align-items:center; justify-content:center; gap:1rem; }
+.ring { width:34px; height:34px; border:2px solid var(--border); border-top-color:var(--lime); border-radius:50%; animation:spin 0.75s linear infinite; }
+.ring-text { font-size:0.58rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--muted); }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--lime); color:var(--black); padding:0.6rem 1.25rem; border-radius:50px; font-size:0.8rem; font-weight:700; z-index:300; transition:transform 0.3s ease; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="logo">Melomaniac Studios</div>
+  <h1>Your music has<br>a <span>shape.</span></h1>
+  <p>See your taste as a 3D form. Set a goal. Watch it move toward who you want to become as a listener.</p>
+  <button class="btn-spotify" id="login-btn">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+    Connect Spotify
+  </button>
+</div>
+
+<div id="loading">
+  <div class="ring"></div>
+  <div class="ring-text" id="loading-text">Connecting…</div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="hdr-logo">Melomaniac — Taste Shape</div>
+    <div class="user-pill"><img id="user-avatar" src="" alt=""/><span id="user-name"></span></div>
+  </header>
+
+  <div id="canvas-wrap">
+    <canvas id="hero-canvas"></canvas>
+    <div class="shape-label" id="shape-label">your taste shape</div>
+  </div>
+
+  <div class="time-bar">
+    <button class="t-btn active" id="btn-long"   onclick="switchRange('long_term')">All Time</button>
+    <button class="t-btn"        id="btn-medium" onclick="switchRange('medium_term')">6 Months</button>
+    <button class="t-btn"        id="btn-short"  onclick="switchRange('short_term')">4 Weeks</button>
+    <button class="t-btn t-share" onclick="shareShape()">↗ Share</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" id="s-energy">—</div><div class="stat-lbl">Energy</div></div>
+    <div class="stat"><div class="stat-val" id="s-mood">—</div><div class="stat-lbl">Mood</div></div>
+    <div class="stat"><div class="stat-val" id="s-dance">—</div><div class="stat-lbl">Dance</div></div>
+    <div class="stat"><div class="stat-val" id="s-acoustic">—</div><div class="stat-lbl">Acoustic</div></div>
+  </div>
+
+  <div class="scroll-body">
+    <div class="section">
+      <div class="sec-title">Choose a listening goal</div>
+      <div class="goals-grid" id="goals-grid"></div>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="prog-labels">
+        <span class="prog-you">Your Sound</span>
+        <span class="prog-pct" id="prog-pct">0%</span>
+        <span class="prog-goal" id="prog-goal-name">—</span>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" id="prog-fill" style="width:0%"></div>
+        <div class="prog-thumb" id="prog-thumb" style="left:0%"></div>
+      </div>
+      <div class="prog-sub" id="prog-sub"></div>
+    </div>
+
+    <div class="section" id="rec-section" style="display:none;">
+      <div class="sec-title" id="rec-title">Tracks that move your shape</div>
+      <div class="rec-list" id="rec-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Your Top Tracks</div>
+      <div class="track-list" id="track-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+const CLIENT_ID = '29c85914e40f4f36a6131e2f2ee803d4';
+const REDIRECT  = window.location.origin + '/';
+const SCOPES    = 'user-top-read user-read-private';
+
+async function login() {
+  const ver = genVerifier();
+  sessionStorage.setItem('pkce', ver);
+  const ch = await genChallenge(ver);
+  window.location = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    client_id: CLIENT_ID, response_type: 'code',
+    redirect_uri: REDIRECT, scope: SCOPES,
+    code_challenge_method: 'S256', code_challenge: ch,
+  });
+}
+function genVerifier(l=128) {
+  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let r = ''; crypto.getRandomValues(new Uint8Array(l)).forEach(v => r += c[v % c.length]); return r;
+}
+async function genChallenge(v) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return btoa(String.fromCharCode(...new Uint8Array(d))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+async function exchangeToken(code) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({ client_id:CLIENT_ID, grant_type:'authorization_code', code, redirect_uri:REDIRECT, code_verifier:sessionStorage.getItem('pkce') })
+  });
+  const d = await r.json();
+  if (!d.access_token) throw new Error(d.error_description || d.error);
+  localStorage.setItem('sp_token', d.access_token);
+  localStorage.setItem('sp_expiry', Date.now() + d.expires_in * 1000);
+  window.history.replaceState({}, '', '/');
+  return d.access_token;
+}
+function getToken() {
+  const t = localStorage.getItem('sp_token'), e = localStorage.getItem('sp_expiry');
+  return t && Date.now() < e ? t : null;
+}
+
+// ── SPOTIFY API ───────────────────────────────────────────────────────────────
+async function api(endpoint, token) {
+  const r = await fetch('https://api.spotify.com/v1' + endpoint, { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error('Spotify ' + r.status + ': ' + JSON.stringify(b)); }
+  return r.json();
+}
+
+// ── FEATURE VECTOR FROM GENRES ────────────────────────────────────────────────
+function featuresFromGenres(tracks, artists) {
+  const gc = {};
+  artists.forEach(a => a.genres?.forEach(g => { gc[g] = (gc[g] || 0) + 1; }));
+  const has = k => Object.keys(gc).some(g => g.includes(k));
+  return {
+    energy:          has('metal')||has('hardcore')?0.92:has('hip hop')||has('trap')?0.80:has('edm')||has('house')||has('techno')?0.85:has('rock')?0.70:has('pop')?0.60:has('r&b')||has('soul')?0.55:has('jazz')||has('classical')?0.28:has('ambient')||has('acoustic')?0.20:0.50,
+    valence:         has('pop')||has('dance')?0.75:has('emo')||has('doom')?0.20:has('hip hop')?0.55:has('metal')?0.25:has('jazz')||has('soul')?0.60:0.50,
+    danceability:    has('edm')||has('house')||has('techno')?0.90:has('hip hop')||has('trap')||has('r&b')?0.80:has('pop')?0.65:has('rock')||has('metal')?0.38:has('classical')||has('ambient')?0.18:0.50,
+    acousticness:    has('acoustic')||has('folk')||has('classical')||has('jazz')?0.82:has('ambient')?0.50:has('pop')||has('r&b')?0.28:has('edm')||has('house')?0.04:has('metal')||has('rock')?0.08:0.30,
+    instrumentalness:has('classical')||has('ambient')||has('jazz')?0.72:has('edm')?0.50:has('hip hop')||has('pop')||has('r&b')?0.04:0.20,
+    tempo_n: Math.min(1, (tracks.reduce((s,t) => s + (t.popularity||50), 0) / tracks.length) / 100),
+  };
+}
+
+// ── GOALS ─────────────────────────────────────────────────────────────────────
+const GOALS = [
+  { id:'purist',    name:'The Purist',    type:'Classical · Ambient',
+    f:{ energy:0.12,valence:0.42,danceability:0.18,acousticness:0.90,instrumentalness:0.82,tempo_n:0.12 },
+    genres:['classical','ambient','new-age'] },
+  { id:'empath',    name:'The Empath',    type:'Acoustic · Folk',
+    f:{ energy:0.28,valence:0.58,danceability:0.32,acousticness:0.88,instrumentalness:0.18,tempo_n:0.28 },
+    genres:['acoustic','folk','singer-songwriter'] },
+  { id:'architect', name:'The Architect', type:'Techno · Electronic',
+    f:{ energy:0.84,valence:0.44,danceability:0.90,acousticness:0.03,instrumentalness:0.88,tempo_n:0.82 },
+    genres:['techno','electronic','minimal-techno'] },
+  { id:'soul',      name:'The Soul',      type:'R&B · Soul · Funk',
+    f:{ energy:0.58,valence:0.88,danceability:0.74,acousticness:0.30,instrumentalness:0.08,tempo_n:0.52 },
+    genres:['soul','r-n-b','funk'] },
+  { id:'voltage',   name:'The Voltage',   type:'Metal · Rock',
+    f:{ energy:0.95,valence:0.35,danceability:0.48,acousticness:0.05,instrumentalness:0.35,tempo_n:0.88 },
+    genres:['metal','rock','hard-rock'] },
+  { id:'wanderer',  name:'The Wanderer',  type:'Jazz · World · Fusion',
+    f:{ energy:0.44,valence:0.62,danceability:0.52,acousticness:0.55,instrumentalness:0.72,tempo_n:0.44 },
+    genres:['jazz','world-music','jazz-fusion'] },
+];
+
+// ── REC ENGINE ────────────────────────────────────────────────────────────────
+function computeDelta(current, goal) {
+  return {
+    energy:          goal.energy          - current.energy,
+    valence:         goal.valence         - current.valence,
+    danceability:    goal.danceability    - current.danceability,
+    acousticness:    goal.acousticness    - current.acousticness,
+    instrumentalness:goal.instrumentalness- current.instrumentalness,
+  };
+}
+
+function buildTargetParams(current, delta) {
+  const lerp = (a, d) => Math.max(0, Math.min(1, a + d * 0.65));
+  return {
+    target_energy:           lerp(current.energy,          delta.energy),
+    target_valence:          lerp(current.valence,         delta.valence),
+    target_danceability:     lerp(current.danceability,    delta.danceability),
+    target_acousticness:     lerp(current.acousticness,    delta.acousticness),
+    target_instrumentalness: lerp(current.instrumentalness,delta.instrumentalness),
+  };
+}
+
+function computeProgress(current, goal) {
+  const dims = ['energy','valence','danceability','acousticness','instrumentalness'];
+  const totalGap = Math.sqrt(dims.reduce((s,k) => s + Math.pow(goal.f[k] - (current[k]||0.5), 2), 0));
+  return Math.max(0, Math.min(1, 1 - totalGap / 2.2));
+}
+
+function scoreImpact(trackF, current, goal) {
+  const dims = ['energy','valence','danceability','acousticness','instrumentalness'];
+  let score = 0;
+  dims.forEach(k => {
+    if (trackF[k] == null) return;
+    const need = goal.f[k] - (current[k]||0.5);
+    const pull = trackF[k] - (current[k]||0.5);
+    if (Math.sign(need) === Math.sign(pull)) score += Math.abs(pull) * Math.abs(need);
+  });
+  return score;
+}
+
+async function fetchRecs(goal, current, token, trackIds) {
+  const delta   = computeDelta(current, goal.f);
+  const targets = buildTargetParams(current, delta);
+  const seedT   = trackIds.slice(0, 2).join(',');
+  const seedG   = goal.genres.slice(0, 1).join(',');
+
+  const params = new URLSearchParams({
+    limit: 20,
+    seed_tracks: seedT,
+    seed_genres: seedG,
+    ...Object.fromEntries(Object.entries(targets).map(([k,v]) => [k, v.toFixed(3)])),
+  });
+
+  const data = await api('/recommendations?' + params, token);
+  return data.tracks || [];
+}
+
+async function fetchAudioFeatures(ids, token) {
+  if (!ids.length) return [];
+  const data = await api('/audio-features?ids=' + ids.join(','), token);
+  return data.audio_features || [];
+}
+
+async function runRecs(goal) {
+  if (!token || !userFeatures) return;
+  showLoading('Finding your bridge tracks…');
+  try {
+    const tracks = await fetchRecs(goal, userFeatures, token, topTrackIds);
+    if (!tracks.length) { hideLoading(); return; }
+
+    const ids      = tracks.map(t => t.id).filter(Boolean);
+    const features = await fetchAudioFeatures(ids, token);
+    const fMap     = {};
+    features.forEach(f => { if (f) fMap[f.id] = f; });
+
+    const scored = tracks
+      .map(t => ({ track:t, impact: fMap[t.id] ? scoreImpact(fMap[t.id], userFeatures, goal) : 0 }))
+      .sort((a,b) => b.impact - a.impact)
+      .slice(0, 8);
+
+    renderRecs(scored, goal);
+    renderProgress(goal);
+    hideLoading();
+  } catch(err) { console.error(err); hideLoading(); showToast('Recs error: ' + err.message); }
+}
+
+// ── THREE.JS ──────────────────────────────────────────────────────────────────
+let scene, camera, renderer, heroMesh, heroWire;
+let heroLights = [], rotY = 0, rotX = 0;
+const heroClock   = new THREE.Clock();
+const BASE_GEO    = new THREE.SphereGeometry(1, 64, 64);
+const BASE_POS    = new Float32Array(BASE_GEO.attributes.position.array);
+const VERT_N      = BASE_POS.length / 3;
+const SHAPE_SEED  = 0xf00dbeef;
+
+function rng(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s,1664525)+1013904223)>>>0; return s/0x100000000; }; }
+
+let currentF = null, goalF = null, morphT = 0, morphDir = 1;
+
+function deformLive(f, time) {
+  const r   = rng(SHAPE_SEED);
+  const amp = 0.09 + f.energy * 0.32;
+  const freq= 1.7  + f.energy * 3.0;
+  const sY  = 0.65 + f.valence * 0.70;
+  const org = 0.35 + (f.acousticness||0.3) * 0.65;
+  const spd = 0.35 + f.danceability * 0.65;
+  const t   = time * spd;
+  const ph  = Array.from({length:8}, () => r() * Math.PI * 2);
+  const pos = heroMesh.geometry.attributes.position;
+  for (let i = 0; i < VERT_N; i++) {
+    const ox=BASE_POS[i*3], oy=BASE_POS[i*3+1], oz=BASE_POS[i*3+2];
+    const l=Math.sqrt(ox*ox+oy*oy+oz*oz), nx=ox/l, ny=oy/l, nz=oz/l;
+    const w1=Math.sin(nx*freq+ph[0]+t*.71)*Math.cos(ny*freq*.83+ph[1]+t*.53)*amp;
+    const w2=Math.sin(ny*freq*1.3+ph[2]+t*1.07)*Math.cos(nz*freq+ph[3]+t*.79)*amp*.55;
+    const w3=Math.cos(nz*freq*.7+ph[4]+t*.43)*Math.sin(nx*freq*1.1+ph[5]+t*.61)*amp*.38*org;
+    const w4=Math.sin((nx+ny+nz)*freq*.45+ph[6]+t*.29)*amp*.22;
+    const d = 1+w1+w2+w3+w4;
+    pos.setXYZ(i, nx*d, ny*d*sY, nz*d);
+  }
+  pos.needsUpdate = true;
+  heroMesh.geometry.computeVertexNormals();
+  if (heroWire) { heroWire.geometry.attributes.position.array.set(pos.array); heroWire.geometry.attributes.position.needsUpdate = true; }
+}
+
+function lerpFeatures(a, b, t) {
+  const out = {};
+  ['energy','valence','danceability','acousticness','instrumentalness','tempo_n'].forEach(k => {
+    out[k] = (a[k]||0) + ((b[k]||0) - (a[k]||0)) * t;
+  });
+  return out;
+}
+
+function initThree() {
+  const canvas = document.getElementById('hero-canvas');
+  const wrap   = canvas.parentElement;
+  scene  = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(52, wrap.clientWidth/wrap.clientHeight, 0.1, 100);
+  camera.position.z = 3.3;
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.6;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.05));
+  const lds = [
+    {c:0xb8f06e,i:15,r:4.0,sy:.27,sz:.22,t:0.0},
+    {c:0xeeff44,i:10,r:3.2,sy:.38,sz:.41,t:2.1},
+    {c:0xffffff,i:5, r:4.8,sy:.19,sz:.15,t:4.2},
+    {c:0x88ff44,i:7, r:3.5,sy:.51,sz:.33,t:1.1},
+    {c:0xddff88,i:4, r:2.9,sy:.62,sz:.47,t:3.4},
+  ];
+  heroLights = lds.map(d => { const l = new THREE.PointLight(d.c,d.i,13); scene.add(l); return{...d,l,_t:d.t}; });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BASE_POS), 3));
+  geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(VERT_N*3), 3));
+  geo.setIndex(BASE_GEO.getIndex());
+  const mat = new THREE.MeshPhysicalMaterial({
+    color:new THREE.Color('#b8f06e'), emissive:new THREE.Color('#112200'),
+    emissiveIntensity:.18, metalness:.88, roughness:.06, clearcoat:1, clearcoatRoughness:.04,
+  });
+  heroMesh = new THREE.Mesh(geo, mat); scene.add(heroMesh);
+  const wm = new THREE.MeshBasicMaterial({ color:0xb8f06e, wireframe:true, transparent:true, opacity:.028 });
+  heroWire = new THREE.Mesh(geo.clone(), wm); scene.add(heroWire);
+  let drag=false, lx=0, ly=0;
+  canvas.addEventListener('mousedown',  e => { drag=true; lx=e.clientX; ly=e.clientY; });
+  canvas.addEventListener('mousemove',  e => { if(!drag)return; rotY+=(e.clientX-lx)*.012; rotX+=(e.clientY-ly)*.012; lx=e.clientX; ly=e.clientY; });
+  canvas.addEventListener('mouseup',   () => drag=false);
+  canvas.addEventListener('touchstart', e => { lx=e.touches[0].clientX; ly=e.touches[0].clientY; }, {passive:true});
+  canvas.addEventListener('touchmove',  e => { rotY+=(e.touches[0].clientX-lx)*.013; rotX+=(e.touches[0].clientY-ly)*.013; lx=e.touches[0].clientX; ly=e.touches[0].clientY; }, {passive:true});
+  window.addEventListener('resize', () => { camera.aspect=wrap.clientWidth/wrap.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(wrap.clientWidth,wrap.clientHeight); });
+  heroLoop();
+}
+
+function heroLoop() {
+  requestAnimationFrame(heroLoop);
+  const t = heroClock.getElapsedTime();
+  heroLights.forEach(d => { d._t+=.009; d.l.position.set(Math.cos(d._t*d.sy)*d.r, Math.sin(d._t*d.sz*1.3)*2.2, Math.sin(d._t*d.sy)*d.r); });
+  if (heroMesh) {
+    let f = currentF || { energy:.5,valence:.5,danceability:.5,acousticness:.3,instrumentalness:.2,tempo_n:.5 };
+    if (goalF && currentF) {
+      morphT += 0.004 * morphDir;
+      if (morphT >= 0.55) { morphT=0.55; morphDir=-1; }
+      if (morphT <= 0)    { morphT=0;    morphDir= 1; }
+      f = lerpFeatures(currentF, goalF, morphT);
+    }
+    deformLive(f, t);
+    heroMesh.rotation.y += (rotY - heroMesh.rotation.y) * .055;
+    heroMesh.rotation.x += (rotX - heroMesh.rotation.x) * .055;
+    rotY += .004;
+    heroWire.rotation.y = heroMesh.rotation.y;
+    heroWire.rotation.x = heroMesh.rotation.x;
+  }
+  renderer.render(scene, camera);
+}
+
+function renderGoalThumb(canvas, features) {
+  const S=new THREE.Scene(), C=new THREE.PerspectiveCamera(48,1,.1,10);
+  C.position.z=3.0;
+  const R=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  R.setSize(canvas.clientWidth||120,canvas.clientHeight||120);
+  R.toneMapping=THREE.ACESFilmicToneMapping; R.toneMappingExposure=1.5;
+  S.add(new THREE.AmbientLight(0xffffff,.06));
+  const l1=new THREE.PointLight(0xb8f06e,14,10); l1.position.set(2.5,2,2); S.add(l1);
+  const l2=new THREE.PointLight(0xeeff44,9,10);  l2.position.set(-2,-1,1.5); S.add(l2);
+  const geo=new THREE.SphereGeometry(1,32,32), pos=geo.attributes.position;
+  const f=features, amp=.08+f.energy*.28, freq=1.7+f.energy*2.8, sY=.65+f.valence*.70;
+  const r=rng(SHAPE_SEED); const ph=Array.from({length:6},()=>r()*Math.PI*2);
+  for(let i=0;i<pos.count;i++){
+    const ox=pos.getX(i),oy=pos.getY(i),oz=pos.getZ(i),l=Math.sqrt(ox*ox+oy*oy+oz*oz),nx=ox/l,ny=oy/l,nz=oz/l;
+    const w1=Math.sin(nx*freq+ph[0])*Math.cos(ny*freq*.83+ph[1])*amp;
+    const w2=Math.sin(ny*freq*1.3+ph[2])*Math.cos(nz*freq+ph[3])*amp*.5;
+    const d=1+w1+w2; pos.setXYZ(i,nx*d,ny*d*sY,nz*d);
+  }
+  pos.needsUpdate=true; geo.computeVertexNormals();
+  const mat=new THREE.MeshPhysicalMaterial({color:new THREE.Color('#b8f06e'),emissive:new THREE.Color('#0d1a00'),emissiveIntensity:.2,metalness:.85,roughness:.08,clearcoat:1,clearcoatRoughness:.04});
+  const m=new THREE.Mesh(geo,mat); m.rotation.x=.35; m.rotation.y=.5; S.add(m);
+  let rot=0; (function loop(){ requestAnimationFrame(loop); m.rotation.y=rot+=.012; R.render(S,C); })();
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let token=null, topTracks=[], topTrackIds=[], userFeatures=null, selectedGoal=null;
+
+// ── DATA LOAD ─────────────────────────────────────────────────────────────────
+async function loadData(range='long_term') {
+  showLoading('Reading your taste…');
+  try {
+    const [profile, tracksData] = await Promise.all([
+      api('/me', token),
+      api(`/me/top/tracks?limit=50&time_range=${range}`, token),
+    ]);
+    if (profile.images?.[0]) document.getElementById('user-avatar').src = profile.images[0].url;
+    document.getElementById('user-name').textContent = profile.display_name;
+
+    topTracks    = tracksData.items;
+    topTrackIds  = topTracks.map(t => t.id);
+
+    setLoading('Mapping your shape…');
+    const artistIds = [...new Set(topTracks.flatMap(t => t.artists.map(a => a.id)))];
+    const chunks = []; for (let i=0; i<artistIds.length; i+=50) chunks.push(artistIds.slice(i,i+50));
+    let artists = [];
+    for (const ch of chunks) { const d = await api('/artists?ids='+ch.join(','),token); artists=artists.concat(d.artists.filter(Boolean)); }
+
+    userFeatures = featuresFromGenres(topTracks, artists);
+    currentF = { ...userFeatures };
+
+    updateStats(userFeatures);
+    renderTopTracks(topTracks);
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display          = 'flex';
+
+    if (selectedGoal) await runRecs(selectedGoal);
+    hideLoading();
+  } catch(err) { console.error(err); hideLoading(); showToast('Error: ' + err.message); }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderRecs(scored, goal) {
+  const section = document.getElementById('rec-section');
+  const list    = document.getElementById('rec-list');
+  document.getElementById('rec-title').textContent = `Tracks to move you toward ${goal.name}`;
+  section.style.display = 'block';
+  list.innerHTML = '';
+  const max = scored[0]?.impact || 1;
+  scored.forEach(({track, impact}) => {
+    const img = track.album?.images?.[2]?.url || '';
+    const pct = Math.max(10, Math.round((impact/max)*100));
+    const a = document.createElement('a');
+    a.className = 'rec-item';
+    a.href      = track.external_urls?.spotify || '#';
+    a.target    = '_blank'; a.rel = 'noopener';
+    a.innerHTML = `
+      ${img ? `<img class="rec-img" src="${img}" alt=""/>` : `<div class="rec-img"></div>`}
+      <div class="rec-info">
+        <div class="rec-track">${track.name}</div>
+        <div class="rec-artist">${track.artists?.map(a=>a.name).join(', ')}</div>
+      </div>
+      <div class="rec-impact">
+        <div class="impact-bar-wrap"><div class="impact-bar" style="width:${pct}%"></div></div>
+        <div class="impact-lbl">+${pct}%</div>
+      </div>`;
+    list.appendChild(a);
+  });
+}
+
+function renderProgress(goal) {
+  const prog = computeProgress(userFeatures, goal);
+  const pct  = Math.round(prog * 100);
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('prog-goal-name').textContent  = goal.name;
+  document.getElementById('prog-pct').textContent        = pct + '%';
+  document.getElementById('prog-fill').style.width       = pct + '%';
+  document.getElementById('prog-thumb').style.left       = pct + '%';
+  const delta   = computeDelta(userFeatures, goal.f);
+  const dimName = {energy:'energy',valence:'mood',danceability:'rhythm',acousticness:'acoustic texture',instrumentalness:'instrumental depth'};
+  const biggest = Object.entries(delta).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+  const dir     = biggest[1] > 0 ? 'more' : 'less';
+  document.getElementById('prog-sub').innerHTML = `Your shape is <em>${pct}%</em> aligned. Biggest gap: <em>${dir} ${dimName[biggest[0]]}</em>. The tracks below close it.`;
+}
+
+function updateStats(f) {
+  const p = v => Math.round(v*100)+'%';
+  document.getElementById('s-energy').textContent  = p(f.energy);
+  document.getElementById('s-mood').textContent    = p(f.valence);
+  document.getElementById('s-dance').textContent   = p(f.danceability);
+  document.getElementById('s-acoustic').textContent= p(f.acousticness);
+}
+
+function renderTopTracks(tracks) {
+  const list = document.getElementById('track-list');
+  list.innerHTML = '';
+  tracks.slice(0, 10).forEach(t => {
+    const img = t.album?.images?.[2]?.url || '';
+    const el  = document.createElement('div');
+    el.className = 'track-item';
+    el.innerHTML = `${img?`<img class="track-img" src="${img}" alt=""/>`:`<div class="track-img"></div>`}<div><div class="track-name">${t.name}</div><div class="track-artist">${t.artists?.map(a=>a.name).join(', ')}</div></div>`;
+    list.appendChild(el);
+  });
+}
+
+// ── GOALS ─────────────────────────────────────────────────────────────────────
+function buildGoals() {
+  const grid = document.getElementById('goals-grid');
+  GOALS.forEach((g, i) => {
+    const card = document.createElement('div');
+    card.className = 'goal-card'; card.id = 'gc-'+g.id;
+    card.innerHTML = `<canvas id="gt-${g.id}"></canvas><div class="goal-info"><div class="goal-name">${g.name}</div><div class="goal-type">${g.type}</div></div>`;
+    card.onclick = () => selectGoal(g);
+    grid.appendChild(card);
+    setTimeout(() => renderGoalThumb(document.getElementById('gt-'+g.id), g.f), i*80);
+  });
+}
+
+async function selectGoal(g) {
+  if (selectedGoal?.id === g.id) {
+    selectedGoal = null; goalF = null; morphT = 0;
+    document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('active'));
+    document.getElementById('progress-wrap').style.display  = 'none';
+    document.getElementById('rec-section').style.display    = 'none';
+    document.getElementById('shape-label').textContent      = 'your taste shape';
+    return;
+  }
+  selectedGoal = g; goalF = g.f; morphDir = 1;
+  document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('gc-'+g.id).classList.add('active');
+  document.getElementById('shape-label').textContent = 'chasing ' + g.name.toLowerCase();
+  if (userFeatures) await runRecs(g);
+}
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+async function switchRange(r) {
+  document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
+  ({long_term:'btn-long',medium_term:'btn-medium',short_term:'btn-short'})[r] &&
+    document.getElementById({long_term:'btn-long',medium_term:'btn-medium',short_term:'btn-short'}[r]).classList.add('active');
+  await loadData(r);
+}
+
+function shareShape() {
+  renderer.render(scene, camera);
+  document.getElementById('hero-canvas').toBlob(blob => {
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download='my-taste-shape.png'; a.click();
+    URL.revokeObjectURL(url); showToast('Shape saved 🔥');
+  });
+}
+
+function showLoading(t='Loading…') { document.getElementById('loading').style.display='flex'; setLoading(t); }
+function setLoading(t) { document.getElementById('loading-text').textContent=t; }
+function hideLoading()  { document.getElementById('loading').style.display='none'; }
+function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2800); }
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  const code = new URLSearchParams(window.location.search).get('code');
+  if (code) {
+    showLoading('Connecting to Spotify…');
+    try { token=await exchangeToken(code); initThree(); buildGoals(); await loadData(); }
+    catch(e) { hideLoading(); showToast('Auth failed: '+e.message); }
+    return;
+  }
+  token = getToken();
+  if (token) { initThree(); buildGoals(); await loadData(); return; }
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+document.getElementById('login-btn').onclick = login;
+boot();
+</script>
+</body>
+</html>
